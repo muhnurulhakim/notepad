@@ -106,7 +106,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
             {isPreview ? 'Edit' : 'Preview'}
           </button>
         </div>
-
+      
         <div className="flex mt-4 sm:mt-0 sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <button
             onClick={exportToPDF}
@@ -124,7 +124,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
           </button>
         </div>
       </div>
-
+      
       {/* Content */}
       <div className="p-4 h-[calc(100vh-12rem)] overflow-auto">
         {isPreview ? (
