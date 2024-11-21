@@ -4,7 +4,7 @@ import { database } from '../lib/firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { Download, Save } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { debounce } from '../utils/debounce';
 import toast from 'react-hot-toast';
 
@@ -17,6 +17,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPreview, setIsPreview] = useState(false);
+  const [showExportButtons, setShowExportButtons] = useState(true); // Add state to control export buttons visibility
 
   useEffect(() => {
     if (!noteId) return;
@@ -106,25 +107,28 @@ export default function Editor({ userId, noteId }: EditorProps) {
             {isPreview ? 'Edit' : 'Preview'}
           </button>
         </div>
-      
-        <div className="flex mt-4 sm:mt-0 sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-          <button
-            onClick={exportToPDF}
-            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
-          >
-            <Download className="h-4 w-4" />
-            <span>PDF</span>
-          </button>
-          <button
-            onClick={exportToTXT}
-            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
-          >
-            <Download className="h-4 w-4" />
-            <span>TXT</span>
-          </button>
-        </div>
+
+        {/* Conditionally render export buttons */}
+        {showExportButtons && (
+          <div className="flex mt-4 sm:mt-0 sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+            <button
+              onClick={exportToPDF}
+              className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
+            >
+              <Download className="h-4 w-4" />
+              <span>PDF</span>
+            </button>
+            <button
+              onClick={exportToTXT}
+              className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
+            >
+              <Download className="h-4 w-4" />
+              <span>TXT</span>
+            </button>
+          </div>
+        )}
       </div>
-      
+
       {/* Content */}
       <div className="p-4 h-[calc(100vh-12rem)] overflow-auto">
         {isPreview ? (
