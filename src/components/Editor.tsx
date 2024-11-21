@@ -101,13 +101,15 @@ export default function Editor({ userId, noteId }: EditorProps) {
             className="w-full sm:w-auto text-xl font-semibold bg-transparent border-b-2 border-gray-300 focus:border-blue-500 transition-all duration-200 ease-in-out focus:outline-none mb-2 sm:mb-0"
           />
           <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto mt-2 sm:mt-0 space-y-2 sm:space-y-0 sm:space-x-2">
+            {/* Hapus atau komentari blok kode berikut
             <button
               onClick={() => setIsPreview(!isPreview)}
               className="w-full sm:w-auto px-3 py-2 rounded text-sm bg-gray-100 hover:bg-gray-200"
             >
               {isPreview ? 'Edit' : 'Preview'}
             </button>
-            <div className="flex justify-end space-x-2">
+            */}
+            <div className="flex justify-end space-x-2 mt-2 sm:mt-0">
               <button
                 onClick={exportToPDF}
                 className="w-20 h-10 flex items-center justify-center space-x-1 rounded bg-gray-100 hover:bg-gray-200 text-xs"
