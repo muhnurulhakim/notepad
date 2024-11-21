@@ -91,38 +91,39 @@ export default function Editor({ userId, noteId }: EditorProps) {
   return (
     <div className="flex-1 bg-white">
       {/* Header */}
-      <div className="border-b border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between">
-        <div className="flex-1 sm:flex sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+      <div className="border-b border-gray-200 p-4 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full">
           <input
             type="text"
             value={title}
             onChange={handleTitleChange}
             placeholder="Note title"
-            className="w-full sm:w-auto text-xl font-semibold bg-transparent border-b-2 border-gray-300 focus:border-blue-500 transition-all duration-200 ease-in-out focus:outline-none"
+            className="w-full sm:w-auto text-xl font-semibold bg-transparent border-b-2 border-gray-300 focus:border-blue-500 transition-all duration-200 ease-in-out focus:outline-none mb-2 sm:mb-0"
           />
-          <button
-            onClick={() => setIsPreview(!isPreview)}
-            className="w-full sm:w-auto px-3 py-2 rounded text-sm bg-gray-100 hover:bg-gray-200"
-          >
-            {isPreview ? 'Edit' : 'Preview'}
-          </button>
-        </div>
-      
-        <div className="flex mt-4 sm:mt-0 sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 justify-end">
-          <button
-            onClick={exportToPDF}
-            className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
-          >
-            <Download className="h-4 w-4" />
-            <span className="sr-only">PDF</span>
-          </button>
-          <button
-            onClick={exportToTXT}
-            className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
-          >
-            <Download className="h-4 w-4" />
-            <span className="sr-only">TXT</span>
-          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto mt-2 sm:mt-0 space-y-2 sm:space-y-0 sm:space-x-2">
+            <button
+              onClick={() => setIsPreview(!isPreview)}
+              className="w-full sm:w-auto px-3 py-2 rounded text-sm bg-gray-100 hover:bg-gray-200"
+            >
+              {isPreview ? 'Edit' : 'Preview'}
+            </button>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={exportToPDF}
+                className="w-20 h-10 flex items-center justify-center space-x-1 rounded bg-gray-100 hover:bg-gray-200 text-xs"
+              >
+                <Download className="h-4 w-4" />
+                <span>PDF</span>
+              </button>
+              <button
+                onClick={exportToTXT}
+                className="w-20 h-10 flex items-center justify-center space-x-1 rounded bg-gray-100 hover:bg-gray-200 text-xs"
+              >
+                <Download className="h-4 w-4" />
+                <span>TXT</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
