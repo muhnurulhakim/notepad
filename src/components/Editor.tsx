@@ -110,14 +110,14 @@ export default function Editor({ userId, noteId }: EditorProps) {
         <div className="flex mt-4 sm:mt-0 sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <button
             onClick={exportToPDF}
-            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200"
+            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
           >
             <Download className="h-4 w-4" />
             <span>PDF</span>
           </button>
           <button
             onClick={exportToTXT}
-            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200"
+            className="w-full sm:w-auto flex items-center justify-center space-x-1 px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm"
           >
             <Download className="h-4 w-4" />
             <span>TXT</span>
@@ -128,7 +128,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
       {/* Content */}
       <div className="p-4 h-[calc(100vh-12rem)] overflow-auto">
         {isPreview ? (
-          <div className="prose max-w-none">
+          <div className="prose max-w-full w-full">
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
         ) : (
