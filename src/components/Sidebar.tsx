@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { ref, onValue, push, remove, set } from 'firebase/database';
 import { database } from '../lib/firebase';
-import { Plus, Folder, File, Trash } from 'lucide-react';
+import { Plus, Folder, File, Trash, ChevronRight, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 interface SidebarProps {
   userId: string;
   onSelectNote: (noteId: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 interface Note {
@@ -23,10 +25,11 @@ interface Folder {
   name: string;
 }
 
-export default function Sidebar({ userId, onSelectNote }: SidebarProps) {
+export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: SidebarProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const notesRef = ref(database, `users/${userId}/notes`);
@@ -63,6 +66,18 @@ export default function Sidebar({ userId, onSelectNote }: SidebarProps) {
     };
   }, [userId]);
 
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
+
   const createNewNote = async () => {
     try {
       const notesRef = ref(database, `users/${userId}/notes`);
@@ -79,25 +94,15 @@ export default function Sidebar({ userId, onSelectNote }: SidebarProps) {
     }
   };
 
-  const deleteNote = async (noteId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
-      await remove(noteRef);
-      toast.success('Note deleted');
-    } catch (error) {
-      toast.error('Failed to delete note');
-    }
-  };
-
   const createNewFolder = async () => {
     const folderName = prompt('Enter folder name:');
     if (folderName) {
       try {
         const foldersRef = ref(database, `users/${userId}/folders`);
-        await push(foldersRef, {
+        const newFolderRef = await push(foldersRef, {
           name: folderName,
         });
+        setExpandedFolders((prev) => new Set([...prev, newFolderRef.key!]));
         toast.success('Folder created');
       } catch (error) {
         toast.error('Failed to create folder');
@@ -105,105 +110,174 @@ export default function Sidebar({ userId, onSelectNote }: SidebarProps) {
     }
   };
 
-  const deleteFolder = async (folderId: string, e: React.MouseEvent) => {
+  const deleteNote = async (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      const folderRef = ref(database, `users/${userId}/folders/${folderId}`);
-      await remove(folderRef);
-      
-      // Remove folder reference from notes in this folder
-      notes.forEach(async (note) => {
-        if (note.folder === folderId) {
-          const noteRef = ref(database, `users/${userId}/notes/${note.id}`);
-          await set(noteRef, {
-            ...note,
-            folder: null,
-          });
-        }
-      });
-      
-      setActiveFolder(null);
-      toast.success('Folder deleted');
-    } catch (error) {
-      toast.error('Failed to delete folder');
+    if (confirm('Are you sure you want to delete this note?')) {
+      try {
+        const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
+        await remove(noteRef);
+        toast.success('Note deleted');
+      } catch (error) {
+        toast.error('Failed to delete note');
+      }
     }
   };
 
+  const deleteFolder = async (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this folder and all its notes?')) {
+      try {
+        const folderRef = ref(database, `users/${userId}/folders/${folderId}`);
+        await remove(folderRef);
+        
+        // Remove folder reference from notes in this folder
+        notes.forEach(async (note) => {
+          if (note.folder === folderId) {
+            const noteRef = ref(database, `users/${userId}/notes/${note.id}`);
+            await remove(noteRef);
+          }
+        });
+        
+        setActiveFolder(null);
+        toast.success('Folder deleted');
+      } catch (error) {
+        toast.error('Failed to delete folder');
+      }
+    }
+  };
+
+  const sidebarClasses = `
+    fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 
+    transform transition-transform duration-300 ease-in-out
+    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+    md:relative md:translate-x-0
+  `;
+
   return (
-    <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <button
-          onClick={createNewNote}
-          className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Note</span>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        <div className="p-2">
-          <button
-            onClick={createNewFolder}
-            className="flex items-center space-x-2 px-3 py-2 w-full text-left text-sm text-gray-600 hover:bg-gray-100 rounded-md"
-          >
-            <Folder className="h-4 w-4" />
-            <span>New Folder</span>
-          </button>
-
-          {folders.map((folder) => (
-            <div
-              key={folder.id}
-              className={`group mt-1 px-3 py-2 rounded-md cursor-pointer ${
-                activeFolder === folder.id ? 'bg-gray-200' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => setActiveFolder(folder.id)}
+    <>
+      <div className={sidebarClasses}>
+        <div className="h-full flex flex-col">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={createNewNote}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Folder className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm">{folder.name}</span>
-                </div>
-                <button
-                  onClick={(e) => deleteFolder(folder.id, e)}
-                  className="hidden group-hover:block p-1 hover:bg-gray-200 rounded"
-                >
-                  <Trash className="h-4 w-4 text-gray-500" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+              <Plus className="h-4 w-4" />
+              <span>New Note</span>
+            </button>
+          </div>
 
-        <div className="p-2">
-          {notes
-            .filter((note) => (!activeFolder && !note.folder) || note.folder === activeFolder)
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-            .map((note) => (
-              <div
-                key={note.id}
-                className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer"
-                onClick={() => onSelectNote(note.id)}
+          <div className="flex-1 overflow-auto">
+            <div className="p-2">
+              <button
+                onClick={createNewFolder}
+                className="flex items-center space-x-2 px-3 py-2 w-full text-left text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
               >
-                <div className="flex items-center space-x-2">
-                  <File className="h-4 w-4 text-gray-500" />
-                  <div>
-                    <div className="text-sm font-medium">{note.title || 'Untitled Note'}</div>
-                    <div className="text-xs text-gray-500">
-                      {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+                <Folder className="h-4 w-4" />
+                <span>New Folder</span>
+              </button>
+
+              {folders.map((folder) => (
+                <div key={folder.id} className="mt-1">
+                  <div
+                    className={`group px-3 py-2 rounded-md cursor-pointer ${
+                      activeFolder === folder.id ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    onClick={() => {
+                      setActiveFolder(folder.id);
+                      toggleFolder(folder.id);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {expandedFolders.has(folder.id) ? (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
+                        <Folder className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm dark:text-gray-300">{folder.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => deleteFolder(folder.id, e)}
+                        className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      >
+                        <Trash className="h-4 w-4 text-gray-500" />
+                      </button>
                     </div>
                   </div>
+
+                  {expandedFolders.has(folder.id) && (
+                    <div className="ml-6">
+                      {notes
+                        .filter((note) => note.folder === folder.id)
+                        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                        .map((note) => (
+                          <div
+                            key={note.id}
+                            className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                            onClick={() => onSelectNote(note.id)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <File className="h-4 w-4 text-gray-500" />
+                              <div>
+                                <div className="text-sm font-medium dark:text-gray-300">{note.title || 'Untitled Note'}</div>
+                                <div className="text-xs text-gray-500">
+                                  {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => deleteNote(note.id, e)}
+                              className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                            >
+                              <Trash className="h-4 w-4 text-gray-500" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={(e) => deleteNote(note.id, e)}
-                  className="hidden group-hover:block p-1 hover:bg-gray-200 rounded"
-                >
-                  <Trash className="h-4 w-4 text-gray-500" />
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div className="p-2">
+              {notes
+                .filter((note) => !note.folder)
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                .map((note) => (
+                  <div
+                    key={note.id}
+                    className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => onSelectNote(note.id)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <File className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <div className="text-sm font-medium dark:text-gray-300">{note.title || 'Untitled Note'}</div>
+                        <div className="text-xs text-gray-500">
+                          {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => deleteNote(note.id, e)}
+                      className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                    >
+                      <Trash className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          onClick={onClose}
+        ></div>
+      )}
+    </>
   );
 }

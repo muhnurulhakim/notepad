@@ -22,7 +22,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   
   const { isDark, toggleTheme } = useThemeStore();
 
@@ -94,7 +94,7 @@ function App() {
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md md:hidden"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -133,13 +133,13 @@ function App() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setShowAuthModal(true)}
-                    className="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
                   >
-                    Sign In
+                    Email Sign In
                   </button>
                   <button
                     onClick={handleGoogleLogin}
-                    className="flex items-center space-x-2 px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm"
                   >
                     <LogIn className="h-4 w-4" />
                     <span className="hidden sm:inline">Sign in with Google</span>
@@ -192,7 +192,7 @@ function App() {
               </button>
               <button
                 onClick={() => setShowAuthModal(false)}
-                className="absolute top-2 right-2 p-2"
+                className="absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 ×
               </button>
@@ -202,9 +202,12 @@ function App() {
 
         {user ? (
           <div className="flex h-[calc(100vh-4rem)]">
-            <div className={`${showSidebar ? 'block' : 'hidden'} md:block transition-all duration-300`}>
-              <Sidebar userId={user.uid} onSelectNote={setActiveNoteId} />
-            </div>
+            <Sidebar 
+              userId={user.uid} 
+              onSelectNote={setActiveNoteId} 
+              isOpen={showSidebar}
+              onClose={() => setShowSidebar(false)}
+            />
             <Editor userId={user.uid} noteId={activeNoteId} />
           </div>
         ) : (
