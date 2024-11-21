@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ref, set, onValue } from 'firebase/database';
+import { ref, set, onValue, get } from 'firebase/database';
 import { database } from '../lib/firebase';
 import ReactMarkdown from 'react-markdown';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { Download, Save } from 'lucide-react';
+import { Download, Save, FileText, FilePdf } from 'lucide-react';
 import { debounce } from '../utils/debounce';
-import { encryptData, decryptData } from '../utils/encryption';
 import toast from 'react-hot-toast';
+import { encryptData, decryptData } from '../utils/encryption';
 
 interface EditorProps {
   userId: string;
@@ -22,18 +22,32 @@ export default function Editor({ userId, noteId }: EditorProps) {
   useEffect(() => {
     if (!noteId) return;
 
+    const fetchNote = async () => {
+      try {
+        const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
+        const snapshot = await get(noteRef);
+        const data = snapshot.val();
+        if (data) {
+          setTitle(data.title || '');
+          setContent(data.content ? decryptData(data.content) : '');
+        }
+      } catch (error) {
+        toast.error('Failed to load note');
+      }
+    };
+
+    fetchNote();
+
     const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
     const unsubscribe = onValue(noteRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setTitle(data.title);
+        setTitle(data.title || '');
         setContent(data.content ? decryptData(data.content) : '');
       }
     });
 
-    return () => {
-      // Firebase will handle unsubscribe
-    };
+    return () => unsubscribe();
   }, [userId, noteId]);
 
   const saveNote = useCallback(
@@ -83,14 +97,15 @@ export default function Editor({ userId, noteId }: EditorProps) {
 
   if (!noteId) {
     return (
-      <div className="flex-1 bg-white dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400">
-        Select a note or create a new one
+      <div className="flex-1 bg-white dark:bg-gray-800 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+        <FileText className="h-16 w-16 mb-4 text-gray-300 dark:text-gray-600" />
+        <p>Select a note or create a new one</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-white dark:bg-gray-800">
+    <div className="flex-1 bg-white dark:bg-gray-800 flex flex-col">
       <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
           <input
@@ -112,21 +127,23 @@ export default function Editor({ userId, noteId }: EditorProps) {
           <button
             onClick={exportToPDF}
             className="flex items-center space-x-1 px-3 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+            title="Save as PDF"
           >
-            <Download className="h-4 w-4" />
+            <FilePdf className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
           </button>
           <button
             onClick={exportToTXT}
             className="flex items-center space-x-1 px-3 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+            title="Save as TXT"
           >
-            <Download className="h-4 w-4" />
+            <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">TXT</span>
           </button>
         </div>
       </div>
 
-      <div className="p-4 h-[calc(100vh-8rem)] overflow-auto">
+      <div className="flex-1 p-4 overflow-auto">
         {isPreview ? (
           <div className="prose dark:prose-invert max-w-none">
             <ReactMarkdown>{content}</ReactMarkdown>
@@ -140,6 +157,11 @@ export default function Editor({ userId, noteId }: EditorProps) {
           />
         )}
       </div>
+
+      <footer className="text-center p-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+        Copyright © 2024 - All rights reserved.<br />
+        Built by Muh. Nurul Hakim.
+      </footer>
     </div>
   );
 }

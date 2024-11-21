@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ref, onValue, push, remove, set } from 'firebase/database';
+import { ref, onValue, push, remove, set, update } from 'firebase/database';
 import { database } from '../lib/firebase';
-import { Plus, Folder, File, Trash, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Folder, File, Trash, ChevronRight, ChevronDown, MoveRight } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,7 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [movingNoteId, setMovingNoteId] = useState<string | null>(null);
 
   useEffect(() => {
     const notesRef = ref(database, `users/${userId}/notes`);
@@ -65,6 +66,20 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
       // Firebase will handle unsubscribe
     };
   }, [userId]);
+
+  const moveNoteToFolder = async (noteId: string, targetFolderId: string | null) => {
+    try {
+      const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
+      await update(noteRef, {
+        folder: targetFolderId,
+        updatedAt: new Date().toISOString(),
+      });
+      setMovingNoteId(null);
+      toast.success('Note moved successfully');
+    } catch (error) {
+      toast.error('Failed to move note');
+    }
+  };
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => {
@@ -110,6 +125,55 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
     }
   };
 
+  const renderNote = (note: Note) => (
+    <div
+      key={note.id}
+      className={`group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
+        movingNoteId === note.id ? 'bg-blue-50 dark:bg-blue-900' : ''
+      }`}
+      onClick={() => {
+        if (movingNoteId === note.id) {
+          setMovingNoteId(null);
+        } else if (movingNoteId) {
+          moveNoteToFolder(movingNoteId, note.folder || null);
+        } else {
+          onSelectNote(note.id);
+        }
+      }}
+    >
+      <div className="flex items-center space-x-2 flex-1 min-w-0">
+        <File className="h-4 w-4 text-gray-500 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium dark:text-gray-300 truncate">
+            {note.title || 'Untitled Note'}
+          </div>
+          <div className="text-xs text-gray-500">
+            {format(new Date(note.updatedAt), 'MMM d, yyyy')}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setMovingNoteId(note.id);
+          }}
+          className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+          title="Move note"
+        >
+          <MoveRight className="h-4 w-4 text-gray-500" />
+        </button>
+        <button
+          onClick={(e) => deleteNote(note.id, e)}
+          className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+          title="Delete note"
+        >
+          <Trash className="h-4 w-4 text-gray-500" />
+        </button>
+      </div>
+    </div>
+  );
+
   const deleteNote = async (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this note?')) {
@@ -130,11 +194,14 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
         const folderRef = ref(database, `users/${userId}/folders/${folderId}`);
         await remove(folderRef);
         
-        // Remove folder reference from notes in this folder
+        // Move notes to root instead of deleting them
         notes.forEach(async (note) => {
           if (note.folder === folderId) {
             const noteRef = ref(database, `users/${userId}/notes/${note.id}`);
-            await remove(noteRef);
+            await update(noteRef, {
+              folder: null,
+              updatedAt: new Date().toISOString(),
+            });
           }
         });
         
@@ -184,8 +251,12 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
                       activeFolder === folder.id ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                     onClick={() => {
-                      setActiveFolder(folder.id);
-                      toggleFolder(folder.id);
+                      if (movingNoteId) {
+                        moveNoteToFolder(movingNoteId, folder.id);
+                      } else {
+                        setActiveFolder(folder.id);
+                        toggleFolder(folder.id);
+                      }
                     }}
                   >
                     <div className="flex items-center justify-between">
@@ -212,29 +283,7 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
                       {notes
                         .filter((note) => note.folder === folder.id)
                         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                        .map((note) => (
-                          <div
-                            key={note.id}
-                            className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                            onClick={() => onSelectNote(note.id)}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <File className="h-4 w-4 text-gray-500" />
-                              <div>
-                                <div className="text-sm font-medium dark:text-gray-300">{note.title || 'Untitled Note'}</div>
-                                <div className="text-xs text-gray-500">
-                                  {format(new Date(note.updatedAt), 'MMM d, yyyy')}
-                                </div>
-                              </div>
-                            </div>
-                            <button
-                              onClick={(e) => deleteNote(note.id, e)}
-                              className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                            >
-                              <Trash className="h-4 w-4 text-gray-500" />
-                            </button>
-                          </div>
-                        ))}
+                        .map(renderNote)}
                     </div>
                   )}
                 </div>
@@ -242,32 +291,13 @@ export default function Sidebar({ userId, onSelectNote, isOpen, onClose }: Sideb
             </div>
 
             <div className="p-2">
+              <div className="text-xs uppercase text-gray-500 dark:text-gray-400 px-3 py-2">
+                Uncategorized Notes
+              </div>
               {notes
                 .filter((note) => !note.folder)
                 .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                .map((note) => (
-                  <div
-                    key={note.id}
-                    className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                    onClick={() => onSelectNote(note.id)}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <File className="h-4 w-4 text-gray-500" />
-                      <div>
-                        <div className="text-sm font-medium dark:text-gray-300">{note.title || 'Untitled Note'}</div>
-                        <div className="text-xs text-gray-500">
-                          {format(new Date(note.updatedAt), 'MMM d, yyyy')}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => deleteNote(note.id, e)}
-                      className="hidden group-hover:block p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                    >
-                      <Trash className="h-4 w-4 text-gray-500" />
-                    </button>
-                  </div>
-                ))}
+                .map(renderNote)}
             </div>
           </div>
         </div>
