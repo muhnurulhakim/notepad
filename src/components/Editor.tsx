@@ -22,9 +22,9 @@ export default function Editor({ userId, noteId }: EditorProps) {
   useEffect(() => {
     if (!noteId) return;
 
+    const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
     const fetchNote = async () => {
       try {
-        const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
         const snapshot = await get(noteRef);
         const data = snapshot.val();
         if (data) {
@@ -32,13 +32,12 @@ export default function Editor({ userId, noteId }: EditorProps) {
           setContent(data.content ? decryptData(data.content) : '');
         }
       } catch (error) {
-        toast.error('Failed to load note');
+        toast.error(`Failed to load note: ${noteId}`);
       }
     };
 
     fetchNote();
 
-    const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
     const unsubscribe = onValue(noteRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -51,20 +50,17 @@ export default function Editor({ userId, noteId }: EditorProps) {
   }, [userId, noteId]);
 
   const saveNote = useCallback(
-    debounce(async (noteData: any) => {
+    debounce((noteData: any) => {
       if (!noteId) return;
-      
-      try {
-        const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
-        await set(noteRef, {
-          ...noteData,
-          content: encryptData(noteData.content),
-          updatedAt: new Date().toISOString(),
-        });
-        toast.success('Note saved');
-      } catch (error) {
-        toast.error('Failed to save note');
-      }
+
+      const noteRef = ref(database, `users/${userId}/notes/${noteId}`);
+      set(noteRef, {
+        ...noteData,
+        content: encryptData(noteData.content),
+        updatedAt: new Date().toISOString(),
+      })
+        .then(() => toast.success('Note saved'))
+        .catch(() => toast.error(`Failed to save note: ${noteId}`));
     }, 1000),
     [userId, noteId]
   );
@@ -83,8 +79,9 @@ export default function Editor({ userId, noteId }: EditorProps) {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.text(title, 10, 10);
-    doc.text(content, 10, 30);
+    doc.text(title || 'Untitled Note', 10, 10);
+    const lines = doc.splitTextToSize(content || '', 180);
+    doc.text(lines, 10, 30);
     doc.save(`${title || 'note'}.pdf`);
     toast.success('Exported to PDF');
   };
@@ -98,7 +95,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
   if (!noteId) {
     return (
       <div className="flex-1 bg-white dark:bg-gray-800 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-        <FileText className="h-16 w-16 mb-4 text-gray-300 dark:text-gray-600" />
+        <FileText className="h-16 w-16 mb-4 text-gray-300 dark:text-gray-600" aria-hidden="true" />
         <p>Select a note or create a new one</p>
       </div>
     );
@@ -114,10 +111,12 @@ export default function Editor({ userId, noteId }: EditorProps) {
             onChange={handleTitleChange}
             placeholder="Note title"
             className="text-lg sm:text-xl font-semibold bg-transparent border-none focus:outline-none w-full sm:w-auto dark:text-white"
+            aria-label="Note Title"
           />
           <button
             onClick={() => setIsPreview(!isPreview)}
             className="px-3 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            aria-pressed={isPreview}
           >
             {isPreview ? 'Edit' : 'Preview'}
           </button>
@@ -128,6 +127,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
             onClick={exportToPDF}
             className="flex items-center space-x-1 px-3 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
             title="Save as PDF"
+            aria-label="Export to PDF"
           >
             <FilePdf className="h-4 w-4" />
             <span className="hidden sm:inline">PDF</span>
@@ -136,6 +136,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
             onClick={exportToTXT}
             className="flex items-center space-x-1 px-3 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
             title="Save as TXT"
+            aria-label="Export to TXT"
           >
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">TXT</span>
@@ -154,6 +155,7 @@ export default function Editor({ userId, noteId }: EditorProps) {
             onChange={handleContentChange}
             placeholder="Start writing in markdown..."
             className="w-full h-full resize-none bg-transparent border-none focus:outline-none font-mono text-base sm:text-sm dark:text-white"
+            aria-label="Note Content"
           />
         )}
       </div>
